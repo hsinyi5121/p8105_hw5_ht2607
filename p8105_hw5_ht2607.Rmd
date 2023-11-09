@@ -4,26 +4,96 @@ output: html_document
 date: "2023-11-04"
 ---
 
+### Setting Up 
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggridges)
+library(patchwork)
+
+library(p8105.datasets)
+
+knitr::opts_chunk$set(
+	echo = TRUE,
+	warning = FALSE,
+	fig.width = 8, 
+  fig.height = 6,
+  out.width = "90%"
+)
+
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
 ```
 
-## R Markdown
+### Question 1
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+```{r}
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
 ```
 
-## Including Plots
+### Question 2
 
-You can also embed plots, for example:
+```{r}
+library(purrr)
+library(readr)
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+# Specify the directory where your CSV files are located
+directory_path = "/Users/cindytseng/Desktop/p8105_hw5_ht2607/data"
+
+# List all CSV files
+csv_files_df =
+  list.files(directory_path, pattern = "\\.csv$", full.names = TRUE)
+
+# Create a dataframe to store filenames
+file_df =
+  data.frame(filename = csv_files_df)
+
+# Use purrr to read data for each subject
+file_df <- file_df |> 
+  mutate(data = map(filename, ~ read.csv(.x)))
+
+# Extract subject ID and arm from filenames
+file_df <- file_df |> 
+  mutate(
+    subject_id = str_extract(filename, "\\d+"), # Extract numerical subject ID
+    arm = str_extract(filename, "con|exp") # Extract arm information
+  )
+
+# Unnest the data and select relevant columns
+exp_con_tidy_df <- file_df |> 
+  select(subject_id, arm, data) |> 
+  unnest(data)
+
+# Rename columns for clarity
+colnames(exp_con_tidy_df) <- c("Subject_ID", "Arm", "Week", "Observation")
+
+# Make sure "Week" and "Observation" are in appropriate data types (e.g., numeric)
+# Extract and assign the "Week" and "Observation" columns using pull
+exp_con_tidy_df <- exp_con_tidy_df |> 
+  select(Week, Observation) |> 
+  mutate(
+    Week = as.numeric(Week),
+    Observation = as.numeric(Observation)
+  )
+
+# Create a spaghetti plot
+ggplot(exp_con_tidy_df, aes(x = Week, y = Observation, group = subject_id, color = Arm)) +
+  geom_line() +
+  labs(title = "Spaghetti Plot of Longitudinal Data",
+       x = "Week",
+       y = "Observation",
+       color = "Arm") +
+  theme(legend.position = "bottom")
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+
