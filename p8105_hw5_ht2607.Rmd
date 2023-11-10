@@ -161,13 +161,53 @@ run_simu<-function(mu=mu){
 }
 
 # combine the outputs from the random sampling
-tibble(mu=c(0:6)) |> 
+results =
+  tibble(mu=c(0:6)) |> 
   mutate(res=map(mu,run_simu)) |> 
   unnest(res)
 
+# Plotting power against true values of μ
+power_plot <- results |> 
+  group_by(mu) |> 
+  summarise(power = mean(p_value < 0.05)) |> 
+  ggplot(aes(x = mu, y = power)) +
+  geom_point() +
+  geom_line() +
+  labs(title = "Power vs. True Value of μ",
+       x = "True Value of μ",
+       y = "Power")
 
+# Display the plots
+power_plot
 
+# Plotting average estimate of μ̂ against true values of μ
+avg_estimate_plot <- results |> 
+  group_by(mu) |> 
+  summarise(avg_estimate = mean(mu_hat)) |> 
+  ggplot(aes(x = mu, y = avg_estimate)) +
+  geom_point() +
+  geom_line() +
+  labs(title = "Average Estimate of μ̂ vs. True Value of μ",
+       x = "True Value of μ",
+       y = "Average Estimate of μ̂")
 
+# Display the plots
+avg_estimate_plot
+
+# Overlaying average estimate of μ̂ for rejected null hypothesis
+avg_estimate_rejected_plot <- results |> 
+  filter(p_value < 0.05) |> 
+  group_by(mu) |> 
+  summarise(avg_estimate_rejected = mean(mu_hat)) |> 
+  ggplot(aes(x = mu, y = avg_estimate_rejected)) +
+  geom_point() +
+  geom_line() +
+  labs(title = "Average Estimate of μ̂ for Rejected Null Hypothesis vs. True Value of μ",
+       x = "True Value of μ",
+       y = "Average Estimate of μ̂")
+
+# Display the plots
+avg_estimate_rejected_plot
 
 ```
 
