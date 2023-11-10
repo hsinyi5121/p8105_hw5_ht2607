@@ -45,46 +45,43 @@ library(purrr)
 library(readr)
 
 # Specify the directory where your CSV files are located
-directory_path = "/Users/cindytseng/Desktop/p8105_hw5_ht2607/data"
+directory_path = "/Users/cindytseng/Desktop/p8105_hw5_ht2607/data/"
 
 # List all CSV files
 csv_files_df =
   list.files(directory_path, pattern = "\\.csv$", full.names = TRUE)
 
 # Create a dataframe to store filenames
-file_df =
-  data.frame(filename = csv_files_df)
-
-# Use purrr to read data for each subject
-file_df <- file_df |> 
-  mutate(data = map(filename, ~ read.csv(.x)))
+file_df = 
+  tibble(
+    files = list.files(directory_path),
+    path = str_c(directory_path, files)
+  ) |> 
+  mutate(data = map(path, read_csv)) |> 
+  unnest()
 
 # Extract subject ID and arm from filenames
 file_df <- file_df |> 
   mutate(
-    subject_id = str_extract(filename, "\\d+"), # Extract numerical subject ID
-    arm = str_extract(filename, "con|exp") # Extract arm information
+    subject_id = str_extract(files, "\\d+"), # Extract numerical subject ID
+    arm = str_extract(files, "con|exp") # Extract arm information
   )
 
 # Unnest the data and select relevant columns
 exp_con_tidy_df <- file_df |> 
-  select(subject_id, arm, data) |> 
-  unnest(data)
-
-# Rename columns for clarity
-colnames(exp_con_tidy_df) <- c("Subject_ID", "Arm", "Week", "Observation")
-
-# Make sure "Week" and "Observation" are in appropriate data types (e.g., numeric)
-# Extract and assign the "Week" and "Observation" columns using pull
-exp_con_tidy_df <- exp_con_tidy_df |> 
-  select(Week, Observation) |> 
-  mutate(
-    Week = as.numeric(Week),
-    Observation = as.numeric(Observation)
-  )
+  pivot_longer(
+    week_1:week_8,
+    names_to = "week",
+    names_prefix = "week_",
+    values_to = "values"
+  ) |> 
+  select(subject_id, arm, week, values) |>
+  mutate(week = as.numeric(week))
+  
 
 # Create a spaghetti plot
-ggplot(exp_con_tidy_df, aes(x = Week, y = Observation, group = subject_id, color = Arm)) +
+ggplot(exp_con_tidy_df, aes(x = week, y = values, color = subject_id)) + 
+  facet_grid(. ~ arm) +
   geom_line() +
   labs(title = "Spaghetti Plot of Longitudinal Data",
        x = "Week",
@@ -94,6 +91,46 @@ ggplot(exp_con_tidy_df, aes(x = Week, y = Observation, group = subject_id, color
 
 ```
 
+### Question 3
+
+```{r}
+library(tidyverse)
+
+set.seed(1)
+
+# creating a function and setting up 
+sim_mean_sd = function(n = 30, mu = mu_param, sigma = 5, alpha = 0.05) {
+  
+  sim_data = tibble(
+    x = rnorm(n, mean = mu, sd = sigma),
+  )
+  
+  sim_data |> 
+    summarize(
+      mu_hat = mean(x),
+      sigma_hat = sd(x),
+      estimate = broom::tidy(t.test(x, mu = mu))$estimate,
+      p_value = broom::tidy(t.test(x, mu = mu))$p.value,
+      null_mu = mu
+    )
+}
+
+# doing literation for 5000 times (random sampling for 5000 times)
+run_simu<-function(mu=mu){
+  output = list()
+  for (i in 1:5000) {output[[i]] = sim_mean_sd(n = 30, mu = mu)}
+  output=bind_rows(output)
+  return(output)
+}
+
+# combine the outputs from the random sampling
+tibble(mu=c(0:6)) |> 
+  mutate(res=map(mu,run_simu)) |> 
+  unnest(res)
 
 
+
+
+
+```
 
