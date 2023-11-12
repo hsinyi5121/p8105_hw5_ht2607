@@ -133,10 +133,15 @@ ggplot(exp_con_tidy_df, aes(x = week, y = values, color = subject_id)) +
 ```{r}
 library(tidyverse)
 
+n <- 30
+sigma <- 5
+alpha <- 0.05
+mu_s <- c(0, 1, 2, 3, 4, 5, 6)
+
 set.seed(1)
 
 # creating a function and setting up 
-sim_mean_sd = function(n = 30, mu = mu_param, sigma = 5, alpha = 0.05) {
+sim_mean_sd = function(n = 30, mu, sigma = 5, alpha = 0.05) {
   
   sim_data = tibble(
     x = rnorm(n, mean = mu, sd = sigma),
@@ -145,31 +150,54 @@ sim_mean_sd = function(n = 30, mu = mu_param, sigma = 5, alpha = 0.05) {
   sim_data |> 
     summarize(
       mu_hat = mean(x),
-      sigma_hat = sd(x),
-      estimate = broom::tidy(t.test(x, mu = mu))$estimate,
-      p_value = broom::tidy(t.test(x, mu = mu))$p.value,
-      null_mu = mu
+      sigma_hat = sd(x)
     )
 }
 
-# doing literation for 5000 times (random sampling for 5000 times)
-run_simu<-function(mu=mu){
-  output = list()
-  for (i in 1:5000) {output[[i]] = sim_mean_sd(n = 30, mu = mu)}
-  output=bind_rows(output)
-  return(output)
+
+```
+
+```{r}
+# creating a function for the t-test
+t_test_function <- function(n, mu, sigma) {
+  sample <- rnorm(n, mean = mu, sd = sigma)
+  test_result <- t.test(sample, mu = 0)
+  broom::tidy(test_result)
 }
+```
 
-# combine the outputs from the random sampling
-results =
-  tibble(mu=c(0:6)) |> 
-  mutate(res=map(mu,run_simu)) |> 
-  unnest(res)
+```{r}
+results <- tibble(mu = numeric(), mu_hat = numeric(), p_value = numeric(), reject = logical())
+```
 
-# Plotting power against true values of μ
-power_plot <- results |> 
+
+```{r}
+# doing literation for 5000 times (random sampling for 5000 times)
+for (mu in mu_s) {
+  for (i in 1:5000) {
+    sim_results <- sim_mean_sd(n, mu, sigma)
+    t_test_results <- t_test_function(n, mu, sigma)
+    results <- results |> 
+      add_row(mu = mu, 
+              mu_hat = sim_results$mu_hat, 
+              p_value = t_test_results$p.value, 
+              reject = t_test_results$p.value < alpha)
+  }
+}
+```
+
+```{r}
+power_results <- results |> 
   group_by(mu) |> 
-  summarise(power = mean(p_value < 0.05)) |> 
+  summarise(power = mean(reject), 
+            avg_mu_hat = mean(mu_hat), 
+            avg_mu_hat_rejected = mean(mu_hat[reject]))
+```
+
+
+```{r}
+# Plotting power against true values of μ
+power_plot <- power_results |> 
   ggplot(aes(x = mu, y = power)) +
   geom_point() +
   geom_line() +
@@ -179,35 +207,41 @@ power_plot <- results |>
 
 # Display the plots
 power_plot
+```
 
+
+
+```{r}
 # Plotting average estimate of μ̂ against true values of μ
-avg_estimate_plot <- results |> 
-  group_by(mu) |> 
-  summarise(avg_estimate = mean(mu_hat)) |> 
-  ggplot(aes(x = mu, y = avg_estimate)) +
-  geom_point() +
-  geom_line() +
-  labs(title = "Average Estimate of μ̂ vs. True Value of μ",
-       x = "True Value of μ",
-       y = "Average Estimate of μ̂")
+avg_estimate_plot <- power_results |>  
+  ggplot(aes(x = mu)) +
+  geom_point(aes(y = avg_mu_hat, 
+                 color = "Average Estimate"), 
+                shape = 1) +  
+  geom_line(aes(y = avg_mu_hat, 
+                color = "Average Estimate")) +
+  geom_point(aes(y = avg_mu_hat_rejected, 
+                 color = "Conditional Average Estimate"), shape = 2) +
+  geom_line(aes(y = avg_mu_hat_rejected, 
+                color = "Conditional Average Estimate"), linetype = "dashed") +
+  labs(
+    title = "Average Estimated Mean vs. True Mean",
+    x = "True Mean (mu)",
+    y = "Average Estimated Mean",
+    color = "mu_hat"
+  ) +
+  scale_color_manual(
+    values = c("Average Estimate" = "blue", "Conditional Average Estimate" = "red")
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
 
 # Display the plots
 avg_estimate_plot
 
-# Overlaying average estimate of μ̂ for rejected null hypothesis
-avg_estimate_rejected_plot <- results |> 
-  filter(p_value < 0.05) |> 
-  group_by(mu) |> 
-  summarise(avg_estimate_rejected = mean(mu_hat)) |> 
-  ggplot(aes(x = mu, y = avg_estimate_rejected)) +
-  geom_point() +
-  geom_line() +
-  labs(title = "Average Estimate of μ̂ for Rejected Null Hypothesis vs. True Value of μ",
-       x = "True Value of μ",
-       y = "Average Estimate of μ̂")
-
-# Display the plots
-avg_estimate_rejected_plot
-
 ```
+
+
+
+
 
