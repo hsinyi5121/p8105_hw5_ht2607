@@ -77,6 +77,7 @@ baltimore_df |>
 
 ### Question 2
 
+Importing, combine, and cleaning the data
 ```{r}
 library(purrr)
 library(readr)
@@ -104,6 +105,10 @@ file_df <- file_df |>
     arm = str_extract(files, "con|exp") # Extract arm information
   )
 
+```
+
+Tidy the dataframe
+```{r}
 # Unnest the data and select relevant columns
 exp_con_tidy_df <- file_df |> 
   pivot_longer(
@@ -115,7 +120,10 @@ exp_con_tidy_df <- file_df |>
   select(subject_id, arm, week, values) |>
   mutate(week = as.numeric(week))
   
+```
 
+Plotting the dataset 
+```{r}
 # Create a spaghetti plot showing observations on each subject over time
 ggplot(exp_con_tidy_df, aes(x = week, y = values, color = subject_id)) + 
   facet_grid(. ~ arm) +
@@ -125,13 +133,14 @@ ggplot(exp_con_tidy_df, aes(x = week, y = values, color = subject_id)) +
        y = "Observation",
        color = "Arm") +
   theme(legend.position = "bottom")
-
 ```
+
 From the graph we can see that in the experiment group have an upward trend among observation indicating that there might be an significant improvement of the condition in the experiment group compared to control group. In contrast, in the control group we can see there is irregular pattern among the observations. Especially, for arm 4, there is dramatically decrease trend of controling during week 6. 
 
 
 ### Question 3
 
+Setting up the values based on the homework instruction
 ```{r}
 library(tidyverse)
 
@@ -159,6 +168,7 @@ sim_mean_sd = function(n = 30, mu, sigma = 5, alpha = 0.05) {
 
 ```
 
+Setting up the t-test for the later steps
 ```{r}
 # creating a function for the t-test
 t_test_function <- function(n, mu, sigma) {
@@ -168,12 +178,13 @@ t_test_function <- function(n, mu, sigma) {
 }
 ```
 
+Setting up literation for the next step
 ```{r}
 #create a dataframe to store the literation 
 results <- tibble(mu = numeric(), mu_hat = numeric(), p_value = numeric(), reject = logical())
 ```
 
-
+Begin literation 
 ```{r}
 # doing literation for 5000 times (random sampling for 5000 times)
 for (mu in mu_s) {
@@ -189,6 +200,7 @@ for (mu in mu_s) {
 }
 ```
 
+Computation the power 
 ```{r}
 # calculating power
 power_results <- results |> 
@@ -198,7 +210,7 @@ power_results <- results |>
             avg_mu_hat_rejected = mean(mu_hat[reject]))
 ```
 
-
+Plotting the first graph
 ```{r}
 # Plotting power against true values of μ
 power_plot <- power_results |> 
@@ -214,7 +226,7 @@ power_plot
 ```
 From the plot we can see that as the true mean (effect size) increase, the power of the test (the probability that false null hypothesis is rejected) increase. This means, there is a positive association between the effect size and power. However, noted that when the value of power exceed to 1, we can see the line flatten. 
 
-
+Plotting the second graph
 ```{r}
 # Plotting average estimate of μ̂ against true values of μ
 avg_estimate_plot <- results |> 
@@ -232,6 +244,7 @@ avg_estimate_plot
 
 ```
 
+Plotting third graph based on plot 2
 ```{r}
 # Overlaying average estimate of μ̂ for rejected null hypothesis
 avg_estimate_rejected_plot <- results |> 
